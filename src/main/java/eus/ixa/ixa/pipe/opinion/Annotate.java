@@ -19,6 +19,7 @@ package eus.ixa.ixa.pipe.opinion;
 import ixa.kaflib.KAFDocument;
 import ixa.kaflib.Opinion;
 import ixa.kaflib.Term;
+import ixa.kaflib.Term.Sentiment;
 import ixa.kaflib.WF;
 import ixa.kaflib.Opinion.OpinionExpression;
 
@@ -27,7 +28,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
+import com.google.common.io.Files;
+
 import eus.ixa.ixa.pipe.ml.StatisticalSequenceLabeler;
+import eus.ixa.ixa.pipe.ml.polarity.DictionaryPolarityTagger;
 import eus.ixa.ixa.pipe.ml.sequence.SequenceLabel;
 import eus.ixa.ixa.pipe.ml.sequence.SequenceLabelFactory;
 import eus.ixa.ixa.pipe.ml.sequence.SequenceLabelerME;
@@ -55,6 +59,10 @@ public class Annotate {
    * Clear features after every sentence or when a -DOCSTART- mark appears.
    */
   private String clearFeatures;
+  /**
+   * Path to the lexicon used for polarity.
+   */
+  private String lexicon;
 
   
   public Annotate(final Properties properties) throws IOException {
@@ -62,6 +70,9 @@ public class Annotate {
     this.clearFeatures = properties.getProperty("clearFeatures");
     nameFactory = new SequenceLabelFactory();
     oteExtractor = new StatisticalSequenceLabeler(properties, nameFactory);
+    if (properties.getProperty("lexicon") != null ) {
+    	this.lexicon = properties.getProperty("lexicon");
+    }
   }
   
   /**
@@ -103,6 +114,31 @@ public class Annotate {
     oteExtractor.clearAdaptiveData();
   }
 
+  /**
+   * Extract Polarity.
+   * @param kaf the KAFDocument
+   * @throws IOException if io errors
+   */
+  public final void annotatePOL(final KAFDocument kaf) throws IOException {
+	DictionaryPolarityTagger dict = new DictionaryPolarityTagger(lexicon);
+	List<Term> terms = kaf.getTerms();
+	for(Term term: terms) {
+		String lemma = term.getLemma();
+		String text = term.getStr();
+		String polarity=dict.apply(lemma);
+		if (polarity == "O") {
+			polarity=dict.apply(text);
+		}
+		if (polarity != "O") {
+			Sentiment sentiment = term.createSentiment();
+			sentiment.setPolarity(polarity);
+			sentiment.setResource(Files.getNameWithoutExtension(lexicon));
+		}
+		
+	}
+  }
+  
+  
   /**
    * Output annotation as NAF.
    * 

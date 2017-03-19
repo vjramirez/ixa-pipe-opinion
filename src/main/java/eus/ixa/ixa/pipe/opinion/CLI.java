@@ -20,6 +20,8 @@ import ixa.kaflib.KAFDocument;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -85,6 +87,10 @@ public class CLI {
    */
   private Subparser oteParser;
   /**
+   * Parser to manage the Polarity Extraction sub-command.
+   */
+  private Subparser polParser;
+  /**
    * Parser to start TCP socket for server-client functionality.
    */
   private Subparser serverParser;
@@ -100,6 +106,8 @@ public class CLI {
   public CLI() {
     oteParser = subParsers.addParser("ote").help("OTE Tagging CLI");
     loadOteParameters();
+    polParser = subParsers.addParser("pol").help("POL Tagging CLI");
+    loadPolParameters();
     serverParser = subParsers.addParser("server").help("Start TCP socket server");
     loadServerParameters();
     clientParser = subParsers.addParser("client").help("Send queries to the TCP socket server");
@@ -138,6 +146,13 @@ public class CLI {
       System.err.println("CLI options: " + parsedArguments);
       if (args[0].equals("ote")) {
     	  extractOte(System.in, System.out);
+      } else if (args[0].equals("pol")) {
+    	  //InputStream inBridge = null;
+    	  OutputStream outbridge = new ByteArrayOutputStream(1024);
+    	  extractPol(System.in, outbridge);
+    	  ByteArrayOutputStream buffer = (ByteArrayOutputStream) outbridge;
+    	  InputStream inBridge = new ByteArrayInputStream(buffer.toByteArray());
+    	  extractOte(inBridge, System.out);
       } else if (args[0].equals("server")) {
         server();
       } else if (args[0].equals("client")) {
@@ -199,6 +214,52 @@ public class CLI {
     } else {
       kafToString = oteExtractor.annotateOTEsToKAF(kaf);
     }
+    bwriter.write(kafToString);
+    bwriter.close();
+    breader.close();
+  }
+  
+  /**
+   * Method to do Polarity Extraction (POL).
+   * 
+   * @param inputStream
+   *          the input stream containing the content to tag
+   * @param outputStream
+   *          the output stream providing the polarity
+   * @throws IOException
+   *           exception if problems in input or output streams
+   * @throws JDOMException if xml formatting problems
+   */
+  public final void extractPol(final InputStream inputStream,
+      final OutputStream outputStream) throws IOException, JDOMException {
+
+    BufferedReader breader = new BufferedReader(new InputStreamReader(
+        inputStream, "UTF-8"));
+    BufferedWriter bwriter = new BufferedWriter(new OutputStreamWriter(
+        outputStream, "UTF-8"));
+    // read KAF document from inputstream
+    KAFDocument kaf = KAFDocument.createFromStream(breader);
+     
+    String kafToString = null;
+    
+ // load parameters into a properties
+    String model = parsedArguments.getString("model");
+    String clearFeatures = parsedArguments.getString("clearFeatures");
+    String lexicon = parsedArguments.getString("lexicon");
+    String lang = null;
+    lang = kaf.getLang();
+    Properties properties = setPolProperties(lexicon, model , lang, clearFeatures);
+    
+    KAFDocument.LinguisticProcessor newLp = kaf.addLinguisticProcessor(
+            "polarity", "ixa-pipe-opinion-" + Files.getNameWithoutExtension(lexicon), version + "-" + commit);
+    newLp.setBeginTimestamp();
+    Annotate polExtractor = new Annotate(properties);
+    polExtractor.annotatePOL(kaf);
+    newLp.setEndTimestamp();
+    
+    //Annotate polExtractor = new Annotate(properties);
+    kafToString = polExtractor.annotateOTEsToKAF(kaf);
+    
     bwriter.write(kafToString);
     bwriter.close();
     breader.close();
@@ -304,6 +365,34 @@ public class CLI {
         .setDefault(Flags.DEFAULT_OUTPUT_FORMAT)
         .help("Choose output format; it defaults to NAF.\n");
   }
+  
+  /**
+   * Create the available parameters for Polarity Extraction.
+   */
+  private void loadPolParameters() {
+    
+	polParser.addArgument("-lx", "--lexicon")
+        .required(true)
+        .help("Pass the lexicon to do the tagging as a parameter.\n");
+    polParser.addArgument("-m", "--model")
+        .required(true)
+        .help("Pass the model to do the tagging as a parameter.\n");
+    polParser.addArgument("--clearFeatures")
+        .required(false)
+        .choices("yes", "no", "docstart")
+        .setDefault(Flags.DEFAULT_FEATURE_FLAG)
+        .help("Reset the adaptive features every sentence; defaults to 'no'; if -DOCSTART- marks" +
+                " are present, choose 'docstart'.\n");
+    polParser.addArgument("-l","--language")
+        .required(false)
+        .choices("en")
+        .help("Choose language; it defaults to the language value in incoming NAF file.\n");
+    polParser.addArgument("-o","--outputFormat")
+        .required(false)
+        .choices("naf", "conll02")
+        .setDefault(Flags.DEFAULT_OUTPUT_FORMAT)
+        .help("Choose output format; it defaults to NAF.\n");
+  }
 
   /**
    * Create the available parameters for NER tagging.
@@ -382,6 +471,14 @@ public class CLI {
     return oteProperties;
   }
   
+  private Properties setPolProperties(String lexicon, String model, String language, String clearFeatures) {
+	    Properties polProperties = new Properties();
+	    polProperties.setProperty("lexicon", lexicon);
+	    polProperties.setProperty("model", model);
+	    polProperties.setProperty("language", language);
+	    polProperties.setProperty("clearFeatures", clearFeatures);
+	    return polProperties;
+	  }
   
   private Properties setNameServerProperties(String port, String model, String language, String lexer, String dictTag, String dictPath, String clearFeatures, String outputFormat) {
     Properties serverProperties = new Properties();
