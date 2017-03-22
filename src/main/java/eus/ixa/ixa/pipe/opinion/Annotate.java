@@ -67,11 +67,13 @@ public class Annotate {
   
   public Annotate(final Properties properties) throws IOException {
 
-    this.clearFeatures = properties.getProperty("clearFeatures");
-    nameFactory = new SequenceLabelFactory();
-    oteExtractor = new StatisticalSequenceLabeler(properties, nameFactory);
     if (properties.getProperty("lexicon") != null ) {
     	this.lexicon = properties.getProperty("lexicon");
+    }
+    else {
+        this.clearFeatures = properties.getProperty("clearFeatures");
+        nameFactory = new SequenceLabelFactory();
+        oteExtractor = new StatisticalSequenceLabeler(properties, nameFactory);
     }
   }
   

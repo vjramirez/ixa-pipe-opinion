@@ -147,13 +147,14 @@ public class CLI {
       if (args[0].equals("ote")) {
     	  extractOte(System.in, System.out);
       } else if (args[0].equals("pol")) {
-    	  //InputStream inBridge = null;
+    	  extractPol(System.in, System.out);
+      } /*else if (args[0].equals("polx")) { //Code for general task
     	  OutputStream outbridge = new ByteArrayOutputStream(1024);
     	  extractPol(System.in, outbridge);
     	  ByteArrayOutputStream buffer = (ByteArrayOutputStream) outbridge;
     	  InputStream inBridge = new ByteArrayInputStream(buffer.toByteArray());
     	  extractOte(inBridge, System.out);
-      } else if (args[0].equals("server")) {
+      }*/ else if (args[0].equals("server")) {
         server();
       } else if (args[0].equals("client")) {
         client(System.in, System.out);
@@ -243,12 +244,8 @@ public class CLI {
     String kafToString = null;
     
  // load parameters into a properties
-    String model = parsedArguments.getString("model");
-    String clearFeatures = parsedArguments.getString("clearFeatures");
     String lexicon = parsedArguments.getString("lexicon");
-    String lang = null;
-    lang = kaf.getLang();
-    Properties properties = setPolProperties(lexicon, model , lang, clearFeatures);
+    Properties properties = setPolProperties(lexicon);
     
     KAFDocument.LinguisticProcessor newLp = kaf.addLinguisticProcessor(
             "polarity", "ixa-pipe-opinion-" + Files.getNameWithoutExtension(lexicon), version + "-" + commit);
@@ -374,24 +371,6 @@ public class CLI {
 	polParser.addArgument("-lx", "--lexicon")
         .required(true)
         .help("Pass the lexicon to do the tagging as a parameter.\n");
-    polParser.addArgument("-m", "--model")
-        .required(true)
-        .help("Pass the model to do the tagging as a parameter.\n");
-    polParser.addArgument("--clearFeatures")
-        .required(false)
-        .choices("yes", "no", "docstart")
-        .setDefault(Flags.DEFAULT_FEATURE_FLAG)
-        .help("Reset the adaptive features every sentence; defaults to 'no'; if -DOCSTART- marks" +
-                " are present, choose 'docstart'.\n");
-    polParser.addArgument("-l","--language")
-        .required(false)
-        .choices("en")
-        .help("Choose language; it defaults to the language value in incoming NAF file.\n");
-    polParser.addArgument("-o","--outputFormat")
-        .required(false)
-        .choices("naf", "conll02")
-        .setDefault(Flags.DEFAULT_OUTPUT_FORMAT)
-        .help("Choose output format; it defaults to NAF.\n");
   }
 
   /**
@@ -471,13 +450,10 @@ public class CLI {
     return oteProperties;
   }
   
-  private Properties setPolProperties(String lexicon, String model, String language, String clearFeatures) {
-	    Properties polProperties = new Properties();
-	    polProperties.setProperty("lexicon", lexicon);
-	    polProperties.setProperty("model", model);
-	    polProperties.setProperty("language", language);
-	    polProperties.setProperty("clearFeatures", clearFeatures);
-	    return polProperties;
+  private Properties setPolProperties(String lexicon) {
+	  Properties polProperties = new Properties();
+	  polProperties.setProperty("lexicon", lexicon);
+	  return polProperties;
 	  }
   
   private Properties setNameServerProperties(String port, String model, String language, String lexer, String dictTag, String dictPath, String clearFeatures, String outputFormat) {
