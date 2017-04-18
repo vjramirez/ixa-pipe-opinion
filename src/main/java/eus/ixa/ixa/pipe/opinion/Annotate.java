@@ -32,6 +32,7 @@ import com.google.common.io.Files;
 
 import eus.ixa.ixa.pipe.ml.StatisticalSequenceLabeler;
 import eus.ixa.ixa.pipe.ml.polarity.DictionaryPolarityTagger;
+import eus.ixa.ixa.pipe.ml.polarity.DocumentClassificationTagger;
 import eus.ixa.ixa.pipe.ml.sequence.SequenceLabel;
 import eus.ixa.ixa.pipe.ml.sequence.SequenceLabelFactory;
 import eus.ixa.ixa.pipe.ml.sequence.SequenceLabelerME;
@@ -63,12 +64,19 @@ public class Annotate {
    * Path to the lexicon used for polarity.
    */
   private String lexicon;
+  /**
+   * Path to the model used for global polarity.
+   */
+  private String model;
 
   
   public Annotate(final Properties properties) throws IOException {
 
     if (properties.getProperty("lexicon") != null ) {
     	this.lexicon = properties.getProperty("lexicon");
+    }
+    else if (properties.getProperty("model") != null ) {
+    	this.model = properties.getProperty("model");
     }
     else {
         this.clearFeatures = properties.getProperty("clearFeatures");
@@ -138,6 +146,21 @@ public class Annotate {
 		}
 		
 	}
+  }
+  
+  /**
+   * Extract Global Polarity.
+   * @param document the Document to classify
+   * @throws IOException if io errors
+   */
+  public final String annotateGPOL(final String document) throws IOException {
+	String ClassifiedDocument = new String();
+	DocumentClassificationTagger doccat = new DocumentClassificationTagger(model);
+	String[] lines = document.split(System.getProperty("line.separator"));
+	for (int i=0; i<lines.length; i++) {
+		ClassifiedDocument += doccat.classify(lines[i]);
+	}
+	return ClassifiedDocument;
   }
   
   

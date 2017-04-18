@@ -20,8 +20,6 @@ import ixa.kaflib.KAFDocument;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -91,6 +89,10 @@ public class CLI {
    */
   private Subparser polParser;
   /**
+   * Parser to manage the Global Polarity Extraction sub-command.
+   */
+  private Subparser gpolParser;
+  /**
    * Parser to start TCP socket for server-client functionality.
    */
   private Subparser serverParser;
@@ -108,6 +110,8 @@ public class CLI {
     loadOteParameters();
     polParser = subParsers.addParser("pol").help("POL Tagging CLI");
     loadPolParameters();
+    gpolParser = subParsers.addParser("gpol").help("Global POL Tagging CLI");
+    loadGPolParameters();
     serverParser = subParsers.addParser("server").help("Start TCP socket server");
     loadServerParameters();
     clientParser = subParsers.addParser("client").help("Send queries to the TCP socket server");
@@ -148,13 +152,9 @@ public class CLI {
     	  extractOte(System.in, System.out);
       } else if (args[0].equals("pol")) {
     	  extractPol(System.in, System.out);
-      } /*else if (args[0].equals("polx")) { //Code for general task
-    	  OutputStream outbridge = new ByteArrayOutputStream(1024);
-    	  extractPol(System.in, outbridge);
-    	  ByteArrayOutputStream buffer = (ByteArrayOutputStream) outbridge;
-    	  InputStream inBridge = new ByteArrayInputStream(buffer.toByteArray());
-    	  extractOte(inBridge, System.out);
-      }*/ else if (args[0].equals("server")) {
+      } else if (args[0].equals("gpol")) { //Code for general task
+    	  extractGPol(System.in, System.out);
+      } else if (args[0].equals("server")) {
         server();
       } else if (args[0].equals("client")) {
         client(System.in, System.out);
@@ -162,7 +162,7 @@ public class CLI {
     } catch (ArgumentParserException e) {
       argParser.handleError(e);
       System.out.println("Run java -jar target/ixa-pipe-opinion-" + version
-          + ".jar (ote|server|client) -help for details");
+          + ".jar (ote|pol|gpol|server|client) -help for details");
       System.exit(1);
     }
   }  
@@ -262,6 +262,44 @@ public class CLI {
     breader.close();
   }
 
+  
+  /**
+   * Method to do Polarity Extraction (POL).
+   * 
+   * @param inputStream
+   *          the input stream containing the content to tag
+   * @param outputStream
+   *          the output stream providing the polarity
+   * @throws IOException
+   *           exception if problems in input or output streams
+   */
+  public final void extractGPol(final InputStream inputStream,
+      final OutputStream outputStream) throws IOException, JDOMException {
+
+    BufferedReader breader = new BufferedReader(new InputStreamReader(
+        inputStream, "UTF-8"));
+    BufferedWriter bwriter = new BufferedWriter(new OutputStreamWriter(
+        outputStream, "UTF-8"));
+    
+    String document = new String();
+    String line;
+    while ((line = breader.readLine()) != null) {
+    	document  += line + "\n";
+    }
+
+    String docToString = null;
+    
+ // load parameters into a properties
+    String model = parsedArguments.getString("model");
+    Properties properties = setGPolProperties(model);
+
+    Annotate polExtractor = new Annotate(properties);
+    docToString = polExtractor.annotateGPOL(document);
+    
+    bwriter.write(docToString);
+    bwriter.close();
+    breader.close();
+  }
   
   /**
    * Set up the TCP socket for annotation.
@@ -372,6 +410,16 @@ public class CLI {
         .required(true)
         .help("Pass the lexicon to do the tagging as a parameter.\n");
   }
+  
+  /**
+   * Create the available parameters for Polarity Extraction.
+   */
+  private void loadGPolParameters() {
+    
+	gpolParser.addArgument("-m", "--model")
+        .required(true)
+        .help("Pass the model to do the tagging as a parameter.\n");
+  }
 
   /**
    * Create the available parameters for NER tagging.
@@ -454,6 +502,12 @@ public class CLI {
 	  Properties polProperties = new Properties();
 	  polProperties.setProperty("lexicon", lexicon);
 	  return polProperties;
+	  }
+  
+  private Properties setGPolProperties(String model) {
+	  Properties gpolProperties = new Properties();
+	  gpolProperties.setProperty("model", model);
+	  return gpolProperties;
 	  }
   
   private Properties setNameServerProperties(String port, String model, String language, String lexer, String dictTag, String dictPath, String clearFeatures, String outputFormat) {
