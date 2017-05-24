@@ -75,13 +75,13 @@ public class Annotate {
     if (properties.getProperty("lexicon") != null ) {
     	this.lexicon = properties.getProperty("lexicon");
     }
-    else if (properties.getProperty("model") != null ) {
-    	this.model = properties.getProperty("model");
-    }
-    else {
-        this.clearFeatures = properties.getProperty("clearFeatures");
+    else if (properties.getProperty("clearFeatures") != null ) {
+    	this.clearFeatures = properties.getProperty("clearFeatures");
         nameFactory = new SequenceLabelFactory();
         oteExtractor = new StatisticalSequenceLabeler(properties, nameFactory);
+    }
+    else {
+    	this.model = properties.getProperty("model");
     }
   }
   
