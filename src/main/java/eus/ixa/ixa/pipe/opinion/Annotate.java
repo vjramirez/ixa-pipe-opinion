@@ -20,10 +20,16 @@ import ixa.kaflib.KAFDocument;
 import ixa.kaflib.Opinion;
 import ixa.kaflib.Term;
 import ixa.kaflib.Term.Sentiment;
+import opennlp.tools.cmdline.CmdLineUtil;
 import ixa.kaflib.WF;
 import ixa.kaflib.Opinion.OpinionExpression;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -130,14 +136,16 @@ public class Annotate {
    * @throws IOException if io errors
    */
   public final void annotatePOL(final KAFDocument kaf) throws IOException {
-	DictionaryPolarityTagger dict = new DictionaryPolarityTagger(lexicon);
+	Path path = Paths.get(lexicon);
+	InputStream in =  CmdLineUtil.openInFile(path.toFile());
+	DictionaryPolarityTagger dict = new DictionaryPolarityTagger(in);
 	List<Term> terms = kaf.getTerms();
 	for(Term term: terms) {
 		String lemma = term.getLemma();
 		String text = term.getStr();
-		String polarity=dict.apply(lemma);
+		String polarity=dict.tag(lemma);
 		if (polarity == "O") {
-			polarity=dict.apply(text);
+			polarity=dict.tag(text);
 		}
 		if (polarity != "O") {
 			Sentiment sentiment = term.createSentiment();
