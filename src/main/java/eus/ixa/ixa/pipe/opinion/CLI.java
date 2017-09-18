@@ -317,6 +317,10 @@ private Subparser polarityParser;
     String dictionary = parsedArguments.getString("dictionary");
     String outputFormat = parsedArguments.getString("outputFormat");
     String clearFeatures = parsedArguments.getString("clearFeatures");
+    String window = "N,N";
+    if (parsedArguments.getString("window") != null) {
+        window = parsedArguments.getString("window");
+    }
     // language parameter
     String lang = null;
     if (parsedArguments.getString("language") != null) {
@@ -329,7 +333,7 @@ private Subparser polarityParser;
     } else {
       lang = kaf.getLang();
     }
-    Properties properties = setPolarityProperties(model, dictionary, lang, clearFeatures);
+    Properties properties = setPolarityProperties(model, dictionary, lang, clearFeatures, window);
     KAFDocument.LinguisticProcessor newLp = kaf.addLinguisticProcessor(
         "opinions", "ixa-pipe-opinion-" + Files.getNameWithoutExtension(model), version + "-" + commit);
     newLp.setBeginTimestamp();
@@ -502,6 +506,9 @@ private Subparser polarityParser;
         .required(false)
         .setDefault(Flags.DEFAULT_DICT_OPTION)
         .help("Provide polarity lexicon to tag polarity at token/lemma level.\n");
+    polarityParser.addArgument("-w","--window")
+    .required(false)
+    .help("Choose the window size around the target if NAF is annotated with options tags\n");
   }
 
   /**
@@ -577,12 +584,14 @@ private Subparser polarityParser;
     return aspectProperties;
   }
   
-  private Properties setPolarityProperties(String model, String dictionary, String language, String clearFeatures) {
+  private Properties setPolarityProperties(String model, String dictionary, String language, String clearFeatures, String window) {
     Properties aspectProperties = new Properties();
     aspectProperties.setProperty("model", model);
     aspectProperties.setProperty("dictionary", dictionary);
     aspectProperties.setProperty("language", language);
     aspectProperties.setProperty("clearFeatures", clearFeatures);
+    aspectProperties.setProperty("windowMin",window.split(",")[0]);
+    aspectProperties.setProperty("windowMax",window.split(",")[1]);
     return aspectProperties;
   }
   
